@@ -1,0 +1,227 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'RaiseTech-For-CloudFormation-Test'
+
+Parameters:
+  KeyPair:
+    Description: #KeyPair Name
+    Type: AWS::EC2::KeyPair::KeyName
+
+Resources:
+  myVPC:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: 10.0.0.0/16
+      EnableDnsSupport: true
+      EnableDnsHostnames: true
+      Tags:
+        - Key: Name
+          Value: CloudFormation-for-vpc-1
+
+  publicSubnet1d:
+    Type: AWS::EC2::Subnet
+    Properties:
+      AvailabilityZone: ap-northeast-1d
+      VpcId:
+        Ref: myVPC
+      CidrBlock: 10.0.2.0/24
+      Tags:
+        - Key: Name
+          Value: CloudFormation-for-public-subnet-1d
+
+  privateSubnet1a:
+    Type: AWS::EC2::Subnet
+    Properties:
+      AvailabilityZone: ap-northeast-1a
+      VpcId:
+        Ref: myVPC  
+      CidrBlock: 10.0.3.0/24
+      Tags:
+        - Key: Name
+          Value: CloudFormation-for-private-subnet-1a
+
+  publicSubnet1a:
+    Type: AWS::EC2::Subnet
+    Properties:
+      AvailabilityZone: ap-northeast-1a
+      VpcId:
+        Ref: myVPC 
+      CidrBlock: 10.0.1.0/24
+      Tags:
+        - Key: Name
+          Value: CloudFormation-for-public-subnet-1a
+
+  privateSubnet1d:
+    Type: AWS::EC2::Subnet
+    Properties:
+      AvailabilityZone: ap-northeast-1d
+      VpcId:
+        Ref: myVPC 
+      CidrBlock: 10.0.4.0/24
+      Tags:
+        - Key: Name
+          Value: CloudFormation-for-private-subnet-1d
+
+  igwName:
+    Type: AWS::EC2::InternetGateway
+    Properties:
+      Tags:
+        - Key: Name
+          Value: CloudFormation-for-igw-1
+          
+  AttachGateway:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      VpcId:
+        Ref: myVPC
+      InternetGatewayId: 
+        Ref: igwName
+
+  routeTableName:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId:
+        Ref: myVPC
+      Tags:
+        - Key: Name
+          Value: CloudFormation-for-rutetable-1
+
+
+  myEC2Instance:
+    Type: AWS::EC2::Instance
+    Properties:
+      KeyName:
+        Ref: KeyPair
+      InstanceInitiatedShutdownBehavior: stop
+      ImageId: ami-0c1e47688ff0a0207
+      InstanceType: t2.micro
+      Monitoring: false
+      NetworkInterfaces:
+        - AssociatePublicIpAddress: true
+          DeviceIndex: 0
+          SubnetId: 
+            Ref: publicSubnet1a
+          GroupSet:
+            - Ref:  securityGroupPublic1a
+      Tags:
+        - Key: Name
+          Value: CloudFormation-for-ec2-1
+
+  rdsDBInstance:
+    Type: AWS::RDS::DBInstance
+    Properties:
+      AllocatedStorage: 20
+      DBInstanceClass: db.t2.micro
+      AllowMajorVersionUpgrade: false
+      AutoMinorVersionUpgrade: true
+      BackupRetentionPeriod: 7
+      DBName: DbForCloudFormation 
+      Engine: mysql
+      EngineVersion: 8.0.16 
+      MasterUsername: #user name
+      MasterUserPassword: #password
+      Port: 3306
+      PubliclyAccessible: false
+      StorageType: gp2
+      LicenseModel: general-public-license
+      Tags:
+        - Key: Name
+          Value: DbForCloudFormation
+      DBSubnetGroupName:
+        Ref: rdsDBSubnetGroup
+      VPCSecurityGroups:
+        - Ref: securityGroupPrivate1a
+
+  rdsDBSubnetGroup:
+    Type: AWS::RDS::DBSubnetGroup
+    Properties:
+      DBSubnetGroupDescription: for CloudFormation test
+      SubnetIds:
+        - Ref: privateSubnet1d
+        - Ref: privateSubnet1a
+
+  securityGroupPublic1a:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: CloudFormation-for-public-sg-1a 
+      VpcId:
+        Ref: myVPC
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          CidrIp: # my IpAdress
+        - IpProtocol: icmp
+          FromPort: -1
+          ToPort: -1
+          CidrIp: 0.0.0.0/0
+      SecurityGroupEgress:
+        - IpProtocol: -1
+          CidrIp: 0.0.0.0/0
+
+      Tags:
+        - Key: Name
+          Value: CloudFormation-for-public-sg-1a
+
+  securityGroupPrivate1a:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: CloudFormation-for-private-sg-1a
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 3306
+          ToPort: 3306
+          CidrIp: 0.0.0.0/0  
+      VpcId:
+        Ref: myVPC
+      Tags:
+        - Key: Name
+          Value: CloudFormation-for-private-sg-1a
+
+  routeTableAssocName:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: 
+        Ref: publicSubnet1a
+      RouteTableId: 
+        Ref: routeTableName
+
+  routeTableAssocName2:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: 
+        Ref: publicSubnet1d
+      RouteTableId:
+        Ref: routeTableName
+
+  routeName:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: 
+        Ref: routeTableName
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: 
+        Ref: igwName
+
+  myELBname:
+    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+    Properties:
+      SecurityGroups:
+        - Ref: securityGroupPublic1a
+      Subnets:
+        - Ref: publicSubnet1a
+        - Ref: publicSubnet1d
+
+  s3Bucket:
+    Type: AWS::S3::Bucket
+    Properties: 
+      AccessControl: Private
+      BucketName: forcloudformation010101
+
+
+
+
+
