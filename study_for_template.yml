@@ -1,12 +1,14 @@
 AWSTemplateFormatVersion: '2010-09-09'
-Description: 'RaiseTech-For-CloudFormation-Test'
+Description: 'CloudFormation_for_RailsApp'
 
 Parameters:
   KeyPair:
     Description: #KeyPair Name
     Type: AWS::EC2::KeyPair::KeyName
 
+# AWSのリソース定義
 Resources:
+  # VPC
   myVPC:
     Type: AWS::EC2::VPC
     Properties:
@@ -16,6 +18,48 @@ Resources:
       Tags:
         - Key: Name
           Value: CloudFormation-for-vpc-1
+
+  # ElasticIP
+  CloudformationElasticIP:
+    Type: AWS::EC2::EIPAssociation
+    Properties:
+      EIP: "IPアドレス"
+      InsancedId:
+        Ref: myEC2Instance
+    DependsOn: myEC2Instance
+
+  # EC2
+  myEC2Instance:
+    Type: AWS::EC2::Instance
+    Properties:
+      KeyName:
+        Ref: KeyPair
+      InstanceInitiatedShutdownBehavior: stop
+      ImageId: ami-068a6cefc24c301d2 #Amazon Linux2
+      InstanceType: t2.micro
+      Monitoring: false
+      NetworkInterfaces:
+        - AssociatePublicIpAddress: true
+          DeviceIndex: 0
+          SubnetId: 
+            Ref: publicSubnet1a
+          GroupSet:
+            - Ref:  securityGroupPublic1a
+      Tags:
+        - Key: Name
+          Value: CloudFormation-for-ec2-1
+
+  # サブネット
+  publicSubnet1a:
+    Type: AWS::EC2::Subnet
+    Properties:
+      AvailabilityZone: ap-northeast-1a
+      VpcId:
+        Ref: myVPC 
+      CidrBlock: 10.0.1.0/24
+      Tags:
+        - Key: Name
+          Value: CloudFormation-for-public-subnet-1a
 
   publicSubnet1d:
     Type: AWS::EC2::Subnet
@@ -39,17 +83,6 @@ Resources:
         - Key: Name
           Value: CloudFormation-for-private-subnet-1a
 
-  publicSubnet1a:
-    Type: AWS::EC2::Subnet
-    Properties:
-      AvailabilityZone: ap-northeast-1a
-      VpcId:
-        Ref: myVPC 
-      CidrBlock: 10.0.1.0/24
-      Tags:
-        - Key: Name
-          Value: CloudFormation-for-public-subnet-1a
-
   privateSubnet1d:
     Type: AWS::EC2::Subnet
     Properties:
@@ -61,13 +94,15 @@ Resources:
         - Key: Name
           Value: CloudFormation-for-private-subnet-1d
 
+  # インターネットゲートウェイ
   igwName:
     Type: AWS::EC2::InternetGateway
     Properties:
       Tags:
         - Key: Name
           Value: CloudFormation-for-igw-1
-          
+
+  # VPCGatewayAttachment
   AttachGateway:
     Type: AWS::EC2::VPCGatewayAttachment
     Properties:
@@ -76,6 +111,7 @@ Resources:
       InternetGatewayId: 
         Ref: igwName
 
+  # ルートテーブル
   routeTableName:
     Type: AWS::EC2::RouteTable
     Properties:
@@ -85,27 +121,79 @@ Resources:
         - Key: Name
           Value: CloudFormation-for-rutetable-1
 
-
-  myEC2Instance:
-    Type: AWS::EC2::Instance
+  # サブネットとルートテーブルの関連付け
+  routeTableAssocName:
+    Type: AWS::EC2::SubnetRouteTableAssociation
     Properties:
-      KeyName:
-        Ref: KeyPair
-      InstanceInitiatedShutdownBehavior: stop
-      ImageId: ami-0c1e47688ff0a0207
-      InstanceType: t2.micro
-      Monitoring: false
-      NetworkInterfaces:
-        - AssociatePublicIpAddress: true
-          DeviceIndex: 0
-          SubnetId: 
-            Ref: publicSubnet1a
-          GroupSet:
-            - Ref:  securityGroupPublic1a
+      SubnetId: 
+        Ref: publicSubnet1a
+      RouteTableId: 
+        Ref: routeTableName
+
+  routeTableAssocName2:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: 
+        Ref: publicSubnet1d
+      RouteTableId:
+        Ref: routeTableName
+
+  # インターネットゲートウェイとルートテーブルの関連付け
+  routeName:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: 
+        Ref: routeTableName
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: 
+        Ref: igwName
+
+  # セキュリティグループの定義
+  securityGroupPublic1a:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: CloudFormation-for-public-sg-1a 
+      VpcId:
+        Ref: myVPC
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          CidrIp: # my IpAdress
+        - IpProtocol: icmp
+          FromPort: -1
+          ToPort: -1
+          CidrIp: 0.0.0.0/0
+      SecurityGroupEgress:
+        - IpProtocol: -1
+          CidrIp: 0.0.0.0/0
       Tags:
         - Key: Name
-          Value: CloudFormation-for-ec2-1
+          Value: CloudFormation-for-public-sg-1a
 
+  securityGroupPrivate1a:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: CloudFormation-for-private-sg-1a
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 3306
+          ToPort: 3306
+          CidrIp: 0.0.0.0/0
+      SecurityGroupEgress:
+        - IpProtocol: -1
+          CidrIp: 0.0.0.0/0
+      VpcId:
+        Ref: myVPC
+      Tags:
+        - Key: Name
+          Value: CloudFormation-for-private-sg-1a
+
+  # RDS
   rdsDBInstance:
     Type: AWS::RDS::DBInstance
     Properties:
@@ -131,6 +219,7 @@ Resources:
       VPCSecurityGroups:
         - Ref: securityGroupPrivate1a
 
+  # RDBサブネットグループ
   rdsDBSubnetGroup:
     Type: AWS::RDS::DBSubnetGroup
     Properties:
@@ -139,73 +228,7 @@ Resources:
         - Ref: privateSubnet1d
         - Ref: privateSubnet1a
 
-  securityGroupPublic1a:
-    Type: AWS::EC2::SecurityGroup
-    Properties:
-      GroupDescription: CloudFormation-for-public-sg-1a 
-      VpcId:
-        Ref: myVPC
-      SecurityGroupIngress:
-        - IpProtocol: tcp
-          FromPort: 80
-          ToPort: 80
-          CidrIp: 0.0.0.0/0
-        - IpProtocol: tcp
-          FromPort: 22
-          ToPort: 22
-          CidrIp: # my IpAdress
-        - IpProtocol: icmp
-          FromPort: -1
-          ToPort: -1
-          CidrIp: 0.0.0.0/0
-      SecurityGroupEgress:
-        - IpProtocol: -1
-          CidrIp: 0.0.0.0/0
-
-      Tags:
-        - Key: Name
-          Value: CloudFormation-for-public-sg-1a
-
-  securityGroupPrivate1a:
-    Type: AWS::EC2::SecurityGroup
-    Properties:
-      GroupDescription: CloudFormation-for-private-sg-1a
-      SecurityGroupIngress:
-        - IpProtocol: tcp
-          FromPort: 3306
-          ToPort: 3306
-          CidrIp: 0.0.0.0/0  
-      VpcId:
-        Ref: myVPC
-      Tags:
-        - Key: Name
-          Value: CloudFormation-for-private-sg-1a
-
-  routeTableAssocName:
-    Type: AWS::EC2::SubnetRouteTableAssociation
-    Properties:
-      SubnetId: 
-        Ref: publicSubnet1a
-      RouteTableId: 
-        Ref: routeTableName
-
-  routeTableAssocName2:
-    Type: AWS::EC2::SubnetRouteTableAssociation
-    Properties:
-      SubnetId: 
-        Ref: publicSubnet1d
-      RouteTableId:
-        Ref: routeTableName
-
-  routeName:
-    Type: AWS::EC2::Route
-    Properties:
-      RouteTableId: 
-        Ref: routeTableName
-      DestinationCidrBlock: 0.0.0.0/0
-      GatewayId: 
-        Ref: igwName
-
+  # ELB
   myELBname:
     Type: AWS::ElasticLoadBalancingV2::LoadBalancer
     Properties:
@@ -215,6 +238,7 @@ Resources:
         - Ref: publicSubnet1a
         - Ref: publicSubnet1d
 
+  # S3
   s3Bucket:
     Type: AWS::S3::Bucket
     Properties: 
