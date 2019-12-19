@@ -1,10 +1,10 @@
 AWSTemplateFormatVersion: '2010-09-09'
 Description: 'CloudFormation_for_RailsApp'
 
-Parameters:
-  KeyPair:
-    Description: kp_for_RaiseTech01
-    Type: AWS::EC2::KeyPair::KeyName
+# Parameters:
+#   KeyPair:
+#     Description: kp_for_RaiseTech01
+#     Type: AWS::EC2::KeyPair::KeyName
 
 # AWSのリソース定義
 Resources:
@@ -32,8 +32,8 @@ Resources:
   myEC2Instance:
     Type: AWS::EC2::Instance
     Properties:
-      KeyName:
-        Ref: KeyPair
+      KeyName: kp_for_RaiseTech01
+        # Ref: KeyPair
       InstanceInitiatedShutdownBehavior: stop
       ImageId: ami-068a6cefc24c301d2 #Amazon Linux2
       InstanceType: t2.micro
@@ -167,7 +167,7 @@ Resources:
         - IpProtocol: tcp
           FromPort: 22
           ToPort: 22
-          CidrIp: 114.184.197.253/32
+          CidrIp: 13.114.101.203/32
         - IpProtocol: icmp
           FromPort: -1
           ToPort: -1
