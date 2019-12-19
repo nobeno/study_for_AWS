@@ -3,7 +3,7 @@ Description: 'CloudFormation_for_RailsApp'
 
 Parameters:
   KeyPair:
-    Description: #KeyPair Name
+    Description: kp_for_RaiseTech01
     Type: AWS::EC2::KeyPair::KeyName
 
 # AWSのリソース定義
@@ -23,8 +23,8 @@ Resources:
   CloudformationElasticIP:
     Type: AWS::EC2::EIPAssociation
     Properties:
-      EIP: "IPアドレス"
-      InsancedId:
+      EIP: "18.178.16.23"
+      InstanceId:
         Ref: myEC2Instance
     DependsOn: myEC2Instance
 
@@ -38,13 +38,17 @@ Resources:
       ImageId: ami-068a6cefc24c301d2 #Amazon Linux2
       InstanceType: t2.micro
       Monitoring: false
-      NetworkInterfaces:
-        - AssociatePublicIpAddress: true
-          DeviceIndex: 0
-          SubnetId: 
-            Ref: publicSubnet1a
-          GroupSet:
-            - Ref:  securityGroupPublic1a
+      SubnetId:
+        Ref: publicSubnet1a
+      SecurityGroupIds:
+        - Ref: securityGroupPublic1a
+      # NetworkInterfaces:
+      #   - AssociatePublicIpAddress: true
+      #     DeviceIndex: 0
+      #     SubnetId: 
+      #       Ref: publicSubnet1a
+      #     GroupSet:
+      #       - Ref:  securityGroupPublic1a
       Tags:
         - Key: Name
           Value: CloudFormation-for-ec2-1
@@ -163,7 +167,7 @@ Resources:
         - IpProtocol: tcp
           FromPort: 22
           ToPort: 22
-          CidrIp: # my IpAdress
+          CidrIp: 114.184.197.253/32
         - IpProtocol: icmp
           FromPort: -1
           ToPort: -1
@@ -205,8 +209,8 @@ Resources:
       DBName: DbForCloudFormation 
       Engine: mysql
       EngineVersion: 8.0.16 
-      MasterUsername: #user name
-      MasterUserPassword: #password
+      MasterUsername: admin
+      MasterUserPassword: adminpass
       Port: 3306
       PubliclyAccessible: false
       StorageType: gp2
@@ -244,8 +248,3 @@ Resources:
     Properties: 
       AccessControl: Private
       BucketName: forcloudformation010101
-
-
-
-
-
